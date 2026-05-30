@@ -5,6 +5,13 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "bin": {
+    "pi-multi-agent": "./bin/cli.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -52,6 +59,7 @@
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "server": "npx tsx server/index.ts",
+    "start": "node bin/cli.js server",
     "example:research": "npx tsx examples/deep-research.ts",
     "example:collaboration": "npx tsx examples/collaboration-modes.ts",
     "example:workflow": "npx tsx examples/dynamic-workflow.ts"
@@ -79,18 +87,15 @@
     "websocket",
     "real-time"
   ],
-  "author": "Pi Multi-Agent Contributors",
+  "author": "jwangkun",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pi-multi-agent/pi-multi-agent"
+    "url": "https://github.com/jwangkun/Pi-Multi-Agent"
   },
-  "homepage": "https://github.com/pi-multi-agent/pi-multi-agent#readme",
+  "homepage": "https://github.com/jwangkun/Pi-Multi-Agent#readme",
   "bugs": {
-    "url": "https://github.com/pi-multi-agent/pi-multi-agent/issues"
-  },
-  "peerDependencies": {
-    "typescript": ">=5.0.0"
+    "url": "https://github.com/jwangkun/Pi-Multi-Agent/issues"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
