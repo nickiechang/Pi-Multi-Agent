@@ -13,8 +13,6 @@
 
 ---
 
-![alt text](demo.png) ![alt text](demo1.png)
-
 ## Overview
 
 π Multi-Agent is a TypeScript framework for building production-grade multi-agent systems. It provides **6 collaboration patterns**, **6 communication structures**, **LLM-powered deep planning**, **agent cluster execution with real tool calling**, and a **real-time web dashboard**.
