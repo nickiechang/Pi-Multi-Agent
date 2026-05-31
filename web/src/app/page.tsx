@@ -37,6 +37,7 @@ import {
   RefreshCw,
   MessageCircle,
 } from "lucide-react";
+import { resolveAutoExecution } from "@/lib/execution-mode";
 
 const API_BASE = "http://localhost:3001";
 const WS_HOST = "localhost:3001";
@@ -823,11 +824,16 @@ export default function MultiAgentUI() {
     return data.sessionId;
   };
 
-  const executeDeepTask = async (taskParam?: string) => {
+  const executeDeepTask = async (
+    taskParam?: string,
+    existingSessionId?: string,
+    options: { appendUserMessage?: boolean; maxAgents?: number } = {}
+  ) => {
     const task = taskParam || taskInput.trim();
     if (!task || isExecuting) return;
 
     if (!taskParam) setTaskInput("");
+    const shouldAppendUserMessage = options.appendUserMessage ?? !taskParam;
     setAgents([]);
     setPlan(null);
     setSubTasks([]);
@@ -838,11 +844,13 @@ export default function MultiAgentUI() {
 
     setMessages((prev) => [
       ...prev,
-      { id: `user-${Date.now()}`, type: "user", text: task, timestamp: Date.now() },
+      ...(shouldAppendUserMessage
+        ? [{ id: `user-${Date.now()}`, type: "user" as const, text: task, timestamp: Date.now() }]
+        : []),
       { id: `sys-${Date.now()}`, type: "system", text: "Initializing deep execution pipeline...", timestamp: Date.now() },
     ]);
 
-    const sid = await createSession();
+    const sid = existingSessionId || await createSession();
     setIsExecuting(true);
 
     try {
@@ -852,7 +860,7 @@ export default function MultiAgentUI() {
         body: JSON.stringify({
           task,
           targetWordCount: 30000,
-          maxAgents: 10,
+          maxAgents: options.maxAgents || 10,
           maxIterations: 3,
         }),
       });
@@ -901,7 +909,7 @@ export default function MultiAgentUI() {
             type: "result",
             text: output,
             timestamp: Date.now(),
-            resultData: { content: output, length: output.length, tokens: data.totalTokens || 0, mode: "deep", agentCount: data.totalTasks || 1 },
+            resultData: { content: output, length: output.length, tokens: data.totalTokensUsed || 0, mode: "deep", agentCount: data.progress?.length || options.maxAgents || 1 },
           },
         ]);
       } else {
@@ -1289,15 +1297,19 @@ export default function MultiAgentUI() {
         },
       ]);
 
-      if (analysis.level === "simple" && analysis.mode === "direct") {
+      const execution = resolveAutoExecution(analysis);
+
+      if (execution.kind === "direct") {
         await executeDirectTask(task, sid);
-      } else if (analysis.level === "medium") {
-        const mode = analysis.mode === "parallel" ? "parallel" : "sequential";
-        setCurrentMode(mode);
-        await executeCollaborationWithConfig(task, sid, mode, analysis.agentCount);
+      } else if (execution.kind === "deep") {
+        setCurrentMode("deep");
+        await executeDeepTask(task, sid, {
+          appendUserMessage: false,
+          maxAgents: execution.agentCount,
+        });
       } else {
-        setCurrentMode(analysis.mode || "expert_team");
-        await executeCollaborationWithConfig(task, sid, analysis.mode || "expert_team", analysis.agentCount);
+        setCurrentMode(execution.mode);
+        await executeCollaborationWithConfig(task, sid, execution.mode, execution.agentCount);
       }
     } catch (error: any) {
       await executeDirectTask(task, sid);
@@ -1317,7 +1329,7 @@ export default function MultiAgentUI() {
     const sid = await createSession();
 
     if (currentMode === "deep") {
-      executeDeepTask(task);
+      executeDeepTask(task, sid, { appendUserMessage: false });
       return;
     }
 
