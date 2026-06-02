@@ -7,10 +7,12 @@ interface ComplexityAnalysis {
   agentCount?: number;
 }
 
+type CollaborationMode = "sequential" | "parallel" | "expert_team";
+
 type AutoExecution =
   | { kind: "direct"; mode: "direct"; agentCount: number }
   | { kind: "deep"; mode: "deep"; agentCount: number }
-  | { kind: "collaboration"; mode: "sequential" | "parallel" | "expert_team"; agentCount: number };
+  | { kind: "collaboration"; mode: CollaborationMode; agentCount: number };
 
 function normalizeAgentCount(agentCount: unknown): number {
   return typeof agentCount === "number" && agentCount >= 1 ? agentCount : 1;

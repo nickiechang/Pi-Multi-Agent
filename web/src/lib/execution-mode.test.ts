@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveAutoExecution } from "./execution-mode";
 
 describe("resolveAutoExecution", () => {
-  it("should route to the deep cluster pipeline when analysis level is deep", () => {
+  it("routes deep analysis to the deep cluster pipeline", () => {
     expect(resolveAutoExecution({ level: "deep", mode: "deep", agentCount: 8 })).toEqual({
       kind: "deep",
       mode: "deep",
@@ -10,7 +10,7 @@ describe("resolveAutoExecution", () => {
     });
   });
 
-  it("should avoid collaboration mode when analysis mode is deep", () => {
+  it("does not send deep mode to the collaboration endpoint", () => {
     const execution = resolveAutoExecution({
       level: "complex",
       mode: "deep",
@@ -20,7 +20,7 @@ describe("resolveAutoExecution", () => {
     expect(execution.kind).toBe("deep");
   });
 
-  it("should use a supported collaboration mode when analysis level is medium", () => {
+  it("keeps medium parallel analysis on a supported collaboration mode", () => {
     expect(resolveAutoExecution({ level: "medium", mode: "parallel", agentCount: 3 })).toEqual({
       kind: "collaboration",
       mode: "parallel",
