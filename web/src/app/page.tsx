@@ -40,7 +40,6 @@ import {
   RefreshCw,
   MessageCircle,
 } from "lucide-react";
-import { resolveAutoExecution } from "@/lib/execution-mode";
 
 const API_BASE = "http://localhost:3001";
 const WS_HOST = "localhost:3001";
@@ -1017,15 +1016,7 @@ export default function MultiAgentUI() {
     }
   }, [connectWS, loadRecentSessions]);
 
-  useEffect(() => {
-    loadRecentSessions();
-    const lastSessionId = localStorage.getItem("pi-multi-agent:last-session-id");
-    if (lastSessionId) {
-      restoreSession(lastSessionId);
-    }
-  }, [loadRecentSessions, restoreSession]);
-
-  const createSession = async (): Promise<string> => {
+  const createSession = useCallback(async (): Promise<string> => {
     const res = await fetch(`${API_BASE}/api/sessions`, { method: "POST" });
     const data = await res.json();
     setSessionId(data.sessionId);
@@ -1033,7 +1024,43 @@ export default function MultiAgentUI() {
     connectWS(data.sessionId);
     await loadRecentSessions();
     return data.sessionId;
-  };
+  }, [connectWS, loadRecentSessions]);
+
+  const createNewSession = useCallback(async () => {
+    clearWorkspace(false);
+    await createSession();
+  }, [clearWorkspace, createSession]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const init = async () => {
+      await loadRecentSessions();
+      if (cancelled) return;
+      const lastSessionId = localStorage.getItem("pi-multi-agent:last-session-id");
+      if (lastSessionId) {
+        try {
+          const res = await fetch(`${API_BASE}/api/sessions/${lastSessionId}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.session && data.session.status === "failed") {
+              localStorage.removeItem("pi-multi-agent:last-session-id");
+              if (!cancelled) await createNewSession();
+            } else if (!cancelled) {
+              restoreSession(lastSessionId);
+            }
+          } else if (!cancelled) {
+            await createNewSession();
+          }
+        } catch {
+          if (!cancelled) await createNewSession();
+        }
+      } else if (!cancelled) {
+        await createNewSession();
+      }
+    };
+    init();
+    return () => { cancelled = true; };
+  }, [loadRecentSessions, restoreSession, createNewSession]);
 
   const executeDeepTask = async (
     taskParam?: string,
@@ -1848,8 +1875,11 @@ blockquote{border-left:4px solid #6366f1;padding-left:1em;margin:1em 0;color:#4b
                 <History className="h-3.5 w-3.5" />
                 Threads
               </div>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={loadRecentSessions} disabled={isLoadingSessions}>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={loadRecentSessions} disabled={isLoadingSessions} title="Refresh">
                 <RefreshCw className={`h-3 w-3 ${isLoadingSessions ? "animate-spin" : ""}`} />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => createNewSession()} title="New thread">
+                <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
             <div className="space-y-1 max-h-44 overflow-y-auto">

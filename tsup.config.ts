@@ -10,6 +10,7 @@ export default defineConfig([
       collaboration: 'src/collaboration/index.ts',
       communication: 'src/communication/index.ts',
       workflow: 'src/workflow/index.ts',
+      models: 'src/models/index.ts',
     },
     format: ['cjs', 'esm'],
     dts: true,

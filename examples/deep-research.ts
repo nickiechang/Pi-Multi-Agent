@@ -1,5 +1,7 @@
 import { AgentCluster } from '../src/orchestration/agent-cluster.js';
 import { DeepPlanner } from '../src/orchestration/deep-planner.js';
+import { loadModelProvidersConfig, createDefaultModelProvidersConfig } from '../src/models/loader.js';
+import { ModelRegistry, MultiModelClient } from '../src/models/index.js';
 
 const API_KEY = process.env.DEEPSEEK_API_KEY;
 if (!API_KEY) {
@@ -7,13 +9,43 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+function buildRegistry(): ModelRegistry {
+  const registry = new ModelRegistry();
+  let config;
+  try {
+    config = loadModelProvidersConfig({
+      defaultPaths: [
+        require('path').resolve(process.cwd(), 'models.config.ts'),
+        require('path').resolve(process.cwd(), 'models.config.json'),
+      ],
+    });
+  } catch {
+    config = createDefaultModelProvidersConfig();
+  }
+  for (const provider of config.providers) {
+    if (!provider.apiKey) continue;
+    registry.registerProvider({
+      id: provider.id,
+      displayName: provider.displayName,
+      baseURL: provider.baseURL,
+      apiKey: provider.apiKey,
+      isDefault: provider.isDefault,
+    });
+  }
+  for (const model of config.models) {
+    registry.registerModel({ id: model.id, provider: model.provider });
+  }
+  return registry;
+}
+
 async function main() {
   const task = process.argv[2] || 'Complete a comprehensive market research report on the current state and future trends of AI Agent technology';
+  const registry = buildRegistry();
 
   console.log('Pi Multi-Agent - Deep Research Example\n');
   console.log(`Task: ${task}\n`);
 
-  const planner = new DeepPlanner(API_KEY);
+  const planner = new DeepPlanner({ registry });
   console.log('Creating execution plan...');
   const plan = await planner.createDeepPlan(task, {
     targetWordCount: 30000,
@@ -26,7 +58,7 @@ async function main() {
     console.log(`  - [${st.priority}] ${st.title} → ${st.assignedAgentName} (${st.assignedAgentType})`);
   }
 
-  const cluster = new AgentCluster(API_KEY, 'deep-research-session');
+  const cluster = new AgentCluster({ registry }, 'deep-research-session');
 
   cluster.onEvent((event) => {
     const data = event.data as Record<string, unknown>;

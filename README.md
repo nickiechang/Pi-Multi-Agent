@@ -6,18 +6,18 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-3178C6.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-339933.svg)](https://nodejs.org/)
 [![npm](https://img.shields.io/npm/v/pi-multi-agent.svg)](https://www.npmjs.com/package/pi-multi-agent)
-[![GitHub stars](https://img.shields.io/github/stars/pi-multi-agent/pi-multi-agent?style=flat)](https://github.com/pi-multi-agent/pi-multi-agent/stargazers)
-[![Contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-[Features](#features) · [Quick Start](#quick-start) · [Architecture](#architecture) · [Collaboration Patterns](#6-collaboration-patterns) · [API Reference](#api-reference) · [Web Dashboard](#web-dashboard) · [Contributing](#contributing)
+[Features](#features) · [Execution Modes](#execution-modes) · [Quick Start](#quick-start) · [Architecture](#architecture) · [API Reference](#api-reference) · [Contributing](#contributing)
 
 ---
 
 ## Overview
 
-π Multi-Agent is a TypeScript framework for building production-grade multi-agent systems. It provides **6 collaboration patterns**, **6 communication structures**, **LLM-powered deep planning**, **agent cluster execution with real tool calling**, and a **real-time web dashboard**.
+π Multi-Agent is a TypeScript-native framework for building production-grade multi-agent orchestration systems. It implements the complete agent lifecycle — **Goal → Plan → Execute → Evaluate → Replan → Output** — with LLM-powered task decomposition, intelligent model routing, real tool calling, and iterative quality refinement.
 
-Unlike simple prompt-chaining libraries, π Multi-Agent implements the full agent lifecycle: **Goal → Plan → Execute → Evaluate → Replan → Output**, with real LLM function calling, inter-agent memory sharing, and iterative quality improvement.
+The framework provides three distinct execution modes to match task complexity: **Direct** for simple queries, **Deep** for research-intensive multi-agent collaboration, and **Workflow** for dynamic pipeline orchestration.
+
+---
 
 ## Screenshots
 
@@ -28,69 +28,283 @@ Unlike simple prompt-chaining libraries, π Multi-Agent implements the full agen
   </tr>
 </table>
 
+---
+
 ## Features
 
+- **Three Execution Modes** — Direct, Deep (Agent Cluster), and Workflow (dynamic pipeline)
+- **Multi-Model Adaptive Routing** — Automatically selects the optimal LLM per task by complexity, priority, and required capabilities
+- **LLM-Powered Deep Planning** — Intelligent task decomposition with dependency graphs, agent role assignment, and quality thresholds
+- **Agent Cluster Execution** — Spawn 10+ specialized sub-agents with real tool calling (web search, data analysis, code execution)
+- **Iterative Quality Loop** — Multi-dimensional evaluation → automated replanning → retry until quality threshold is met
+- **Enhanced Shared Memory** — Inter-agent data passing, session context persistence, and output sharing
 - **6 Collaboration Patterns** — Sequential, Parallel, Debate & Consensus, Expert Team, Critic-Reviewer, Hierarchical
-- **6 Communication Structures** — Single Agent, Network, Supervisor, Supervisor as Tool, Hierarchical, Custom
-- **LLM-Powered Deep Planning** — Intelligent task decomposition with dependency graphs and quality thresholds
-- **Agent Cluster Execution** — 10+ sub-agents with real tool calling (web search, data analysis, code execution)
-- **Iterative Quality Loop** — Multi-dimensional evaluation → replan → retry until quality threshold met
-- **Enhanced Shared Memory** — Inter-agent data passing, session context, output sharing
-- **Real-Time Dashboard** — WebSocket-powered UI with agent status, tool calls, progress tracking
-- **Type-Safe** — Full TypeScript with strict mode, zero `any` escapes in public API
+- **6 Communication Topologies** — Single Agent, Network, Supervisor, Supervisor-as-Tool, Hierarchical, Custom
+- **Dynamic Workflow Engine** — Sandboxed JavaScript execution pipeline with budget control and concurrency management
+- **Real-Time Dashboard** — WebSocket-powered Next.js UI with agent status, tool calls, progress tracking, and report viewer
+- **Type-Safe** — Full TypeScript with strict mode, comprehensive public API types
+
+---
+
+## Execution Modes
+
+The framework exposes three execution modes, each optimized for a different task complexity spectrum.
+
+### Direct Mode
+
+Suitable for simple, single-step tasks that do not require multi-agent coordination. A single LLM call processes the request and returns the result. This is the default mode for greetings, Q&A, basic calculations, and short-form content generation.
+
+**Characteristics:**
+- Single LLM invocation
+- Lightweight model routing (cost-optimized)
+- Sub-2-second response time
+- No planning or evaluation overhead
+
+**Use cases:** Chat, Q&A, summarization, code explanation, translation
+
+### Deep Mode (Agent Cluster)
+
+Designed for complex, research-intensive tasks requiring multi-agent collaboration. The system performs LLM-driven task decomposition to generate a structured execution plan, then spawns a cluster of specialized agents that execute sub-tasks in parallel with real tool calling, sharing results through enhanced shared memory.
+
+**Execution Pipeline:**
+
+```
+User Task
+  → DeepPlanner: LLM-driven decomposition into N sub-tasks
+    → Dependency graph construction
+    → Agent role & tool assignment per sub-task
+  → AgentCluster: Parallel/sequential execution
+    → Tool calling (web_search, data_analyzer, etc.)
+    → Shared memory inter-agent data passing
+  → DeepEvaluator: 4-dimension quality assessment
+    → Accuracy · Completeness · Consistency · Format
+  → Quality gate: score < threshold → Replan → Retry (up to N iterations)
+  → Final output synthesis
+```
+
+**Key capabilities:**
+- Up to 10 sub-tasks per execution, with automatic dependency resolution
+- Per-sub-task model selection (light model for simple sub-tasks, reasoning model for analysis)
+- Real tool calling with input/output tracking and duration measurement
+- Iterative quality improvement loop with configurable evaluation thresholds
+- Real-time progress streaming via WebSocket
+
+**Use cases:** Market research reports, technical deep-dives, comparative analysis, long-form content generation (30,000+ words), multi-source synthesis
+
+### Workflow Mode (Dynamic Pipeline)
+
+The most flexible execution mode. An LLM auto-generates a structured JavaScript workflow script based on the task description, then executes it in a sandboxed VM environment with controlled concurrency, token budget, and phase tracking.
+
+**Execution Pipeline:**
+
+```
+User Task
+  → LLM generates workflow script (meta + phases + agents)
+    → Script validation (security: forbidden globals check)
+    → VM sandbox execution
+      → Phase-by-phase progress tracking
+      → Concurrent agent execution (configurable concurrency limit)
+      → Token budget enforcement
+      → Structured output (JSON schema support)
+  → Workflow snapshot (agents, phases, logs, status)
+```
+
+**Key capabilities:**
+- LLM-generated execution scripts — no manual coding required
+- Sandboxed `vm` execution with forbidden global protection
+- Phase-based progress tracking with event callbacks
+- Configurable token budget and max concurrent agents
+- Structured output via JSON schema validation
+- Abort support for long-running workflows
+
+**Use cases:** Custom multi-step pipelines, batch processing, research workflows with sequential phases, automated report generation with custom logic
+
+---
+
+## Multi-Model Adaptive Routing
+
+π Multi-Agent implements an intelligent model routing system that automatically assigns the most appropriate LLM to each task based on complexity analysis, required capabilities, and cost optimization.
+
+### Architecture
+
+```
+                     ┌──────────────────────────────┐
+                     │     ModelRegistry             │
+                     │  (Provider + Model catalog)   │
+                     └──────────┬───────────────────┘
+                                │
+              ┌─────────────────┼─────────────────┐
+              │                 │                 │
+    ┌─────────▼──────┐  ┌──────▼──────────┐  ┌───▼──────────┐
+    │ ModelRouter    │  │ ModelAwareLLM   │  │ MultiModel   │
+    │                │  │ Client          │  │ Client       │
+    │ • Complexity   │  │ • chat()        │  │ • chat()     │
+    │ • Tool support │  │ • plan()        │  │ • simple()   │
+    │ • Specialty    │  │ • execute()     │  │              │
+    │ • Cheapest     │  │ • evaluate()    │  │              │
+    │                │  │ • simple()      │  │              │
+    └────────────────┘  └─────────────────┘  └──────────────┘
+```
+
+### Routing Strategies
+
+| Strategy | Description | Applied To |
+|----------|-------------|------------|
+| **Complexity-Based** | Routes based on task complexity hint (light / medium / heavy) | Default; used by all orchestration components |
+| **Tool-Aware** | Prioritizes models with function calling capability | Sub-tasks requiring tool invocation |
+| **Specialty-Match** | Selects models by capability tags (reasoning, coding, writing) | Agent-specific sub-tasks |
+| **Cost-Optimized** | Selects the cheapest model that meets requirements | Low-priority, non-critical tasks |
+| **Direct** | Uses explicitly specified model | User-overridden model selection |
+
+### Model Selection by Execution Context
+
+| Context | Complexity | Required Specialty | Selected Model Tier |
+|---------|-----------|-------------------|-------------------|
+| DeepPlanner (task decomposition) | Heavy | Reasoning, Planning | Large reasoning model |
+| DeepEvaluator (quality assessment) | Heavy | Analysis | Large reasoning model |
+| Agent execution (with tools) | Medium | Tool calling | Mid-tier with tool support |
+| Agent execution (writing) | Medium | Writing | Mid-tier with writing capability |
+| Simple chat / Q&A | Light | General | Lightweight, cost-optimized |
+| Critical priority sub-task | Heavy | Any | Maximum capability |
+| Low priority sub-task | Light | Any | Cost-optimized |
+
+### Configuration
+
+Create `models.config.ts` in the project root:
+
+```typescript
+// models.config.ts
+import type { ModelProvidersConfig } from './src/models/config.js';
+
+export const exampleModelProvidersConfig: ModelProvidersConfig = {
+  providers: [
+    {
+      id: 'deepseek',
+      displayName: 'DeepSeek',
+      baseURL: 'https://api.deepseek.com',
+      apiKey: process.env['DEEPSEEK_API_KEY'] ?? '',
+      isDefault: true,
+    },
+    // Add more providers: OpenAI, Anthropic, DashScope, etc.
+  ],
+  models: [
+    {
+      id: 'deepseek-chat',
+      provider: 'deepseek',
+      displayName: 'DeepSeek Chat',
+      complexity: 'light',
+      specialties: ['chat', 'general', 'planning'],
+      tags: ['tools'],
+      contextWindow: 64000,
+      maxOutputTokens: 4096,
+    },
+    {
+      id: 'deepseek-reasoner',
+      provider: 'deepseek',
+      displayName: 'DeepSeek Reasoner',
+      complexity: 'heavy',
+      specialties: ['reasoning', 'analysis'],
+      contextWindow: 64000,
+      maxOutputTokens: 4096,
+    },
+  ],
+};
+```
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         π Multi-Agent                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
-│  │ Deep Planner │  │   Agent      │  │    Deep Evaluator        │  │
-│  │ LLM-Driven   │  │  Cluster     │  │  4-Dimension Assessment  │  │
-│  │ Task Decomp. │  │  Execution   │  │  + Reflection + Replan   │  │
-│  └──────────────┘  └──────────────┘  └──────────────────────────┘  │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                  Enhanced Shared Memory                      │   │
-│  │  ┌────────────┐  ┌────────────┐  ┌──────────────────────┐   │   │
-│  │  │  Agent      │  │  Session   │  │   Inter-Agent        │   │   │
-│  │  │  Outputs    │  │  Context   │  │   Messaging          │   │   │
-│  │  └────────────┘  └────────────┘  └──────────────────────┘   │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                   6 Collaboration Patterns                   │   │
-│  │  Sequential │ Parallel │ Debate │ Expert │ Critic │ Hier.   │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                   Tool System (Function Calling)              │   │
-│  │  web_search │ data_analyzer │ web_scraper │ code_executor    │   │
-│  │  report_writer │ knowledge_base │ calculator │ agent_delegate│   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                   6 Communication Structures                  │   │
-│  │  Single │ Network │ Supervisor │ AsTool │ Hier. │ Custom     │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        π Multi-Agent Framework                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌────────────────────────┐  │
+│  │  Deep Planner   │  │   Agent         │  │   Deep Evaluator       │  │
+│  │  (LLM-Driven    │  │   Cluster       │  │   (4-Dim Quality       │  │
+│  │   Task Decomp.) │  │   Executor      │  │    Assessment + Replan)│  │
+│  └─────────────────┘  └─────────────────┘  └────────────────────────┘  │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    Enhanced Shared Memory                        │   │
+│  │  ┌──────────────┐  ┌─────────────┐  ┌────────────────────────┐  │   │
+│  │  │ Agent Outputs│  │  Session    │  │  Inter-Agent Messaging │  │   │
+│  │  │ & Artifacts  │  │  Context    │  │  & Data Passing        │  │   │
+│  │  └──────────────┘  └─────────────┘  └────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                  6 Collaboration Patterns                        │   │
+│  │  Sequential │ Parallel │ Debate │ Expert │ Critic │ Hierarchical│  │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                   Dynamic Workflow Engine                         │   │
+│  │  LLM Script Generation → Sandboxed VM → Phase Tracking          │   │
+│  │  Token Budget │ Concurrency Control │ Structured Output          │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │              Multi-Model Routing System                           │   │
+│  │  ModelRegistry │ ModelRouter │ Complexity Estimator │ Adapters   │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                   Tool System (Function Calling)                  │   │
+│  │  web_search │ data_analyzer │ web_scraper │ code_executor        │   │
+│  │  report_writer │ knowledge_base │ calculator │ agent_delegate   │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
+
+---
 
 ## 8-Step Execution Lifecycle
 
 ```
-[User Goal] → 1. Goal Definition
-             → 2. Deep Planner (LLM-driven task decomposition)
-             → 3. Agent Cluster (spawn 10+ specialized agents)
-             → 4. Tool Calling (web search, data analysis, etc.)
-             → 5. Shared Memory (inter-agent data passing)
-             → 6. Deep Evaluator (4-dimension quality assessment)
-             → 7. Replan/Retry (if quality < threshold)
-             → 8. Final Output (synthesized report)
+[User Goal]
+    │
+    ▼
+ 1. Goal Definition
+    Capture, validate, and classify task complexity
+    │
+    ▼
+ 2. Deep Planner (LLM-Driven)
+    Decompose into structured sub-tasks with dependencies
+    Assign agent roles, tools, and quality thresholds
+    │
+    ▼
+ 3. Model Routing
+    Assign optimal model per sub-task
+    (light / medium / heavy based on complexity, tools, priority)
+    │
+    ▼
+ 4. Agent Cluster Execution
+    Spawn specialized agents, execute sub-tasks
+    Real tool calling → Shared memory → Inter-agent data passing
+    │
+    ▼
+ 5. Deep Evaluator (4-Dimension Assessment)
+    Accuracy · Completeness · Consistency · Format
+    │
+    ▼
+ 6. Quality Gate
+    Score >= threshold? ──── Yes ──→ 8. Final Output
+    │
+    No
+    ▼
+ 7. Replan & Retry
+    Adjust strategy, re-execute failed sub-tasks
+    (up to configurable max iterations)
+    │
+    ▼
+ 8. Final Output
+    Synthesized report with full audit trail
 ```
+
+---
 
 ## Quick Start
 
@@ -103,87 +317,67 @@ npm install pi-multi-agent
 ### Prerequisites
 
 - Node.js 18+
-- A DeepSeek API key (or OpenAI-compatible endpoint)
+- A DeepSeek API key (or any OpenAI-compatible endpoint)
 
-### 1. Deep Research (Agent Cluster)
+### 1. Configure Environment
+
+```bash
+# .env
+DEEPSEEK_API_KEY=your-api-key
+```
+
+### 2. Run Deep Research (Agent Cluster)
 
 ```typescript
-import { DeepPlanner, AgentCluster } from 'pi-multi-agent';
+import { DeepPlanner, AgentCluster, ModelRegistry, loadModelProvidersConfig } from 'pi-multi-agent';
 
-const planner = new DeepPlanner(process.env.DEEPSEEK_API_KEY);
+const registry = new ModelRegistry();
+const config = loadModelProvidersConfig();
+for (const p of config.providers) {
+  if (p.apiKey) registry.registerProvider(p);
+}
+for (const m of config.models) {
+  registry.registerModel(m);
+}
+
+const planner = new DeepPlanner({ registry });
 const plan = await planner.createDeepPlan(
   'Complete a comprehensive AI Agent market research report',
   { targetWordCount: 30000, maxAgents: 8 }
 );
 
-const cluster = new AgentCluster(process.env.DEEPSEEK_API_KEY, 'session-1');
-
-cluster.onEvent((event) => {
-  console.log(`[${event.type}] ${event.agentName}:`, event.data);
-});
-
+const cluster = new AgentCluster({ registry }, 'session-1');
+cluster.onEvent((event) => console.log(`[${event.type}]`, event.data));
 const result = await cluster.executePlan(plan, 3);
-console.log(`Report: ${result.finalOutput.length} chars, Score: ${result.evaluationScore}`);
 ```
 
-### 2. Collaboration Modes
+### 3. Collaboration Modes
 
 ```typescript
 import { LLMAgentCollaboration } from 'pi-multi-agent';
 
-const collab = new LLMAgentCollaboration(process.env.DEEPSEEK_API_KEY);
-
-const agents = [
-  { id: 'researcher', name: 'Researcher', type: 'researcher',
-    systemPrompt: 'You are a market research expert.' },
-  { id: 'analyst', name: 'Analyst', type: 'analyst',
-    systemPrompt: 'You are a data analysis expert.' },
-  { id: 'writer', name: 'Writer', type: 'writer',
-    systemPrompt: 'You are a professional report writer.' },
-];
+const collab = new LLMAgentCollaboration(apiKey, baseURL);
 
 // Sequential: Researcher → Analyst → Writer
-const seqResult = await collab.executeSequential(agents, 'Analyze AI market trends');
+await collab.executeSequential(agents, task);
 
 // Parallel: All agents work simultaneously
-const parResult = await collab.executeParallel(agents, 'Multi-perspective analysis');
-
-// Expert Team: Domain specialists + integrator
-const expResult = await collab.executeExpertTeam(
-  agents.map(a => ({ ...a, specialty: a.type })),
-  'Comprehensive report'
-);
+await collab.executeParallel(agents, task);
 
 // Debate: Multi-round discussion for consensus
-const debResult = await collab.executeDebate(agents, 'Investment strategy', 3);
+await collab.executeDebate(agents, topic, maxRounds);
+
+// Expert Team: Domain specialists + integrator
+await collab.executeExpertTeam(experts, task);
 
 // Hierarchical: Supervisor → Subordinates → Synthesize
-const hierResult = await collab.executeHierarchical(agents[0], agents.slice(1), task);
+await collab.executeHierarchical(supervisor, subordinates, task);
 
 // Critic-Reviewer: Create → Review → Iterate
-const critResult = await collab.executeCriticReviewer(agents[0], agents[1], task, 2);
+await collab.executeCriticReviewer(creator, critic, task, maxRounds);
 ```
 
-### 3. Core Agent API
-
-```typescript
-import { Agent, SequentialHandoffs, AgentContext } from 'pi-multi-agent';
-
-const researcher = new Agent({
-  name: 'Researcher',
-  systemPrompt: 'You are a research expert.',
-  model: { provider: 'openai', model: 'gpt-4' },
-}, myExecutor);
-
-const analyst = new Agent({
-  name: 'Analyst',
-  systemPrompt: 'You are a data analyst.',
-  model: { provider: 'openai', model: 'gpt-4' },
-}, myExecutor);
-
-const workflow = new SequentialHandoffs([researcher, analyst], context);
-const result = await workflow.execute('Research AI trends and analyze findings');
-```
+---
 
 ## 6 Collaboration Patterns
 
@@ -191,7 +385,7 @@ const result = await workflow.execute('Research AI trends and analyze findings')
 |---------|-------------|----------|
 | **Sequential Handoffs** | Pipeline: Agent A → B → C | Structured workflows with clear stages |
 | **Parallel Processing** | All agents work simultaneously | Independent multi-perspective tasks |
-| **Debate & Consensus** | Multi-round discussion + moderator | Decision-making, strategy, consensus |
+| **Debate & Consensus** | Multi-round discussion + moderator | Decision-making, strategy, consensus-building |
 | **Expert Team** | Domain specialists + integrator | Complex multi-domain tasks |
 | **Critic-Reviewer** | Create → Review → Iterate | Quality-critical content generation |
 | **Hierarchical** | Supervisor → Subordinates → Synthesize | Large-scale task decomposition |
@@ -209,114 +403,174 @@ const result = await workflow.execute('Research AI trends and analyze findings')
 
 ## Tool System
 
-Agents can call real tools via LLM function calling:
+Agents invoke real tools via structured LLM function calling:
 
 | Tool | Description |
 |------|-------------|
-| `web_search` | Search the internet for information (DuckDuckGo API) |
-| `data_analyzer` | Analyze data and generate statistical insights |
-| `web_scraper` | Extract content from web pages |
-| `code_executor` | Execute code snippets and return results |
-| `report_writer` | Structure and format report content |
-| `knowledge_base` | Query and retrieve from knowledge base |
-| `calculator` | Perform mathematical calculations |
-| `agent_delegate` | Delegate subtasks to other agents (Agent-as-Tool) |
+| `web_search` | Internet search (DuckDuckGo API) |
+| `data_analyzer` | Statistical analysis and data insights |
+| `web_scraper` | Web content extraction |
+| `code_executor` | Code snippet execution with result capture |
+| `report_writer` | Report structuring and formatting |
+| `knowledge_base` | Knowledge retrieval and querying |
+| `calculator` | Mathematical computations |
+| `agent_delegate` | Sub-task delegation to other agents |
 
-Tools are automatically assigned based on agent type:
+Tool assignment is automatic per agent type:
 
 ```typescript
-// Researcher agents get: web_search, web_scraper, knowledge_base
-// Analyst agents get: data_analyzer, calculator, knowledge_base
-// Writer agents get: report_writer
-// Coder agents get: code_executor, web_scraper
+// Researcher → web_search, web_scraper, knowledge_base
+// Analyst   → data_analyzer, calculator, knowledge_base
+// Writer    → report_writer
+// Coder     → code_executor, web_scraper
 ```
 
 ## Deep Evaluator
 
-The evaluator assesses output across 4 dimensions:
+The evaluator applies a 4-dimensional quality assessment:
 
-1. **Accuracy** — Factual correctness and data validity
-2. **Completeness** — Coverage of required topics and depth
-3. **Consistency** — Logical coherence and internal consistency
-4. **Format** — Structure, readability, and professional formatting
+| Dimension | Assessment Focus |
+|-----------|-----------------|
+| **Accuracy** | Factual correctness, data validity, source reliability |
+| **Completeness** | Topic coverage, depth, minimum thresholds met |
+| **Consistency** | Logical coherence, cross-reference integrity |
+| **Format** | Structure, readability, professional presentation |
 
-If the evaluation score falls below the threshold, the system automatically replans and retries.
+When the composite score falls below the configured threshold, the system automatically triggers a replan-and-retry cycle with adjusted strategy.
+
+---
 
 ## Web Dashboard
 
-The included Next.js dashboard provides real-time visualization:
+The bundled Next.js dashboard provides real-time visualization and control:
 
 ```bash
-# Terminal 1: Start the backend server
-DEEPSEEK_API_KEY=your-key npm run server
+# Terminal 1: Start the backend API server
+npm run server
 
 # Terminal 2: Start the web dashboard
 cd web && npm run dev
 ```
 
-Features:
+### Dashboard Capabilities
 
-- **Agent Cluster Panel** — View all agents, their status, and progress
-- **Real-Time Chat** — Submit tasks and see agent responses live
-- **Plan Visualization** — Inspect the deep plan and subtask breakdown
-- **Tool Call Tracking** — See every tool call with input/output/duration
-- **Evaluation Dashboard** — Quality scores with dimension breakdown
-- **Report Viewer** — Read and download the final output (Markdown / HTML / TXT)
+| Panel | Description |
+|-------|-------------|
+| **Agent Cluster** | Live agent status, sub-task progress, model usage |
+| **Thread History** | Session management with restore and new session |
+| **Plan Inspector** | Sub-task breakdown with dependencies and agent assignments |
+| **Tool Call Log** | Every tool invocation with input, output, and duration |
+| **Quality Dashboard** | Evaluation scores with per-dimension breakdown |
+| **Report Viewer** | Final output with Markdown / HTML / TXT export |
+
+---
+
+## Dynamic Workflow API
+
+```typescript
+import { DynamicWorkflow } from 'pi-multi-agent';
+
+const workflow = new DynamicWorkflow({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: 'https://api.deepseek.com',
+  model: 'deepseek-chat',
+  tokenBudget: 200000,
+  maxConcurrentAgents: 5,
+});
+
+workflow.onEvent((event) => {
+  // workflow:started, phase:changed, agent:started,
+  // agent:completed, agent:failed, workflow:completed
+});
+
+const result = await workflow.run(
+  'Research AI market trends and generate a structured report with executive summary'
+);
+
+console.log(result.output);          // Structured output
+console.log(result.snapshot);         // Full execution snapshot
+console.log(result.totalTokens);      // Token consumption
+```
+
+---
 
 ## Project Structure
 
 ```
 pi-multi-agent/
 ├── src/
-│   ├── core/                    # Agent base, types, errors
-│   │   ├── agent.ts             # Agent lifecycle & execution
-│   │   ├── types.ts             # TypeScript type definitions
-│   │   ├── errors.ts            # Custom error hierarchy
-│   │   └── message.ts           # Message types
-│   ├── orchestration/           # Planning, execution, evaluation
-│   │   ├── deep-planner.ts      # LLM-driven task decomposition
-│   │   ├── agent-cluster.ts     # Cluster execution engine
-│   │   ├── deep-evaluator.ts    # 4-dimension quality assessment
-│   │   ├── orchestrator.ts      # Task scheduling
-│   │   ├── planner.ts           # Basic planning
-│   │   └── evaluator.ts         # Basic evaluation
-│   ├── collaboration/           # 6 collaboration patterns
-│   │   ├── patterns.ts          # Core pattern implementations
-│   │   └── llm-collaboration.ts # LLM-powered collaboration
-│   ├── communication/           # 6 communication structures
-│   │   └── structures.ts        # Topology implementations
-│   ├── memory/                  # Memory management
-│   │   ├── memory.ts            # Short-term + long-term memory
+│   ├── core/                          # Agent base, types, error hierarchy
+│   │   ├── agent.ts                   # Agent lifecycle & execution engine
+│   │   ├── types.ts                   # Core TypeScript type definitions
+│   │   ├── errors.ts                  # Custom error hierarchy
+│   │   └── message.ts                 # Message bus & event types
+│   ├── orchestration/                 # Planning, execution, evaluation
+│   │   ├── deep-planner.ts            # LLM-driven task decomposition
+│   │   ├── agent-cluster.ts           # Cluster execution engine with model routing
+│   │   ├── deep-evaluator.ts          # 4-dimension quality assessment
+│   │   ├── orchestrator.ts            # Task scheduling & coordination
+│   │   ├── planner.ts                 # Basic task planning
+│   │   └── evaluator.ts               # Basic evaluation
+│   ├── collaboration/                 # 6 collaboration patterns
+│   │   ├── patterns.ts                # Core pattern implementations
+│   │   └── llm-collaboration.ts       # LLM-powered collaboration orchestration
+│   ├── communication/                 # 6 communication topologies
+│   │   └── structures.ts              # Topology implementations
+│   ├── memory/                        # Memory management
+│   │   ├── memory.ts                  # Short-term + long-term memory
 │   │   └── enhanced-shared-memory.ts  # Inter-agent shared memory
-│   └── tools/                   # Tool system
-│       ├── index.ts             # 7 core tools + agent-as-tool
-│       └── agent-as-tool.ts     # Agent delegation tool
-├── server/                      # Backend API server
-│   └── index.ts                 # Express + WebSocket server
-├── web/                         # Next.js dashboard
-│   └── src/app/page.tsx         # Real-time dashboard UI
-├── examples/                    # Usage examples
-│   ├── deep-research.ts         # Deep research example
-│   └── collaboration-modes.ts   # All 6 collaboration modes
+│   ├── models/                        # Multi-model routing system
+│   │   ├── config.ts                  # Provider & Model type definitions
+│   │   ├── registry.ts                # ModelRegistry — provider/model catalog
+│   │   ├── router.ts                  # ModelRouter — 5 routing strategies
+│   │   ├── client.ts                  # MultiModelClient — unified chat API
+│   │   ├── loader.ts                  # Config loader (.ts / .json)
+│   │   ├── adapter.ts                 # OpenAI-compatible provider adapter
+│   │   ├── deepseek-compatible-client.ts  # DeepSeek API bridge
+│   │   ├── complexity-estimator.ts    # Task complexity → model mapping
+│   │   └── model-aware-client.ts      # High-level routing API for orchestration
+│   └── tools/                         # Tool system
+│       ├── index.ts                   # 8 core tools + agent-as-tool
+│       └── agent-as-tool.ts           # Agent delegation via tool calling
+├── workflow/                          # Dynamic workflow engine
+│   ├── workflow.ts                    # Workflow definition & script generation
+│   ├── runtime.ts                     # Sandboxed VM execution engine
+│   ├── types.ts                       # Workflow type definitions
+│   └── budget.ts                      # Token budget management
+├── server/                            # Backend API server
+│   ├── index.ts                       # Express + WebSocket server
+│   └── session-store.ts               # File-based session persistence
+├── web/                               # Next.js dashboard
+│   └── src/app/page.tsx               # Real-time dashboard UI
+├── examples/                          # Usage examples
+│   ├── deep-research.ts               # Deep research (Agent Cluster)
+│   └── collaboration-modes.ts         # All 6 collaboration patterns
+├── models.config.ts                   # Multi-model configuration
+├── models.config.example.ts           # Example config with all providers
 └── package.json
 ```
+
+---
 
 ## API Reference
 
 ### DeepPlanner
 
 ```typescript
-const planner = new DeepPlanner(apiKey, baseURL?);
+const planner = new DeepPlanner({ registry? | apiKey?, baseURL?, strategy? });
 const plan = await planner.createDeepPlan(goal, options?);
 // options: { targetWordCount?: number, maxAgents?: number, depth?: number }
+// Returns: DeepPlan { id, goal, subTasks, collaborationMode, qualityThresholds }
 ```
 
 ### AgentCluster
 
 ```typescript
-const cluster = new AgentCluster(apiKey, sessionId, baseURL?);
-cluster.onEvent(callback);  // Subscribe to events
+const cluster = new AgentCluster({ registry?, apiKey?, baseURL? }, sessionId);
+cluster.onEvent((event: ClusterEvent) => { /* WebSocket streaming */ });
 const result = await cluster.executePlan(plan, maxIterations?);
+// Returns: ClusterExecutionResult { success, finalOutput, evaluationScore,
+//          iterations, totalTokensUsed, modelUsage, progress }
 ```
 
 ### LLMAgentCollaboration
@@ -331,23 +585,43 @@ await collab.executeExpertTeam(experts, task);
 await collab.executeCriticReviewer(creator, critic, task, maxRounds?);
 ```
 
-### EnhancedSharedMemory
+### ModelRegistry
 
 ```typescript
-const memory = new EnhancedSharedMemory(sessionId);
-memory.setGoal(goal);
-memory.registerAgent(agentId, name, type);
-memory.storeAgentOutput(taskId, output);
-memory.sendMessage({ fromAgentId, toAgentId, type, content });
-const context = memory.buildContextForAgent(agentId);
+const registry = new ModelRegistry();
+registry.registerProvider({ id, displayName, baseURL, apiKey, isDefault? });
+registry.registerModel({ id, provider, complexity, specialties, tags?, ... });
+registry.getClient(providerId);              // Get cached OpenAI client
+registry.getClientForModel(modelId);         // Get client for a specific model
+registry.getDefaultProvider();               // Get default provider
+registry.listModels();                       // All registered models
+registry.listModelsByComplexity('heavy');    // Filter by complexity
 ```
+
+### DynamicWorkflow
+
+```typescript
+const workflow = new DynamicWorkflow({ apiKey, baseURL?, model?, tokenBudget?, maxConcurrentAgents? });
+workflow.onEvent(callback);
+const result = await workflow.run(taskDescription, args?);
+// Returns: WorkflowResult { success, output, snapshot, totalTokens, totalExecutionTime }
+```
+
+---
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DEEPSEEK_API_KEY` | Yes | DeepSeek API key for LLM calls |
+| `DEEPSEEK_BASE_URL` | No | Custom API base URL (default: `https://api.deepseek.com`) |
+| `OPENAI_API_KEY` | Optional | OpenAI API key (if using GPT models) |
+| `ANTHROPIC_API_KEY` | Optional | Anthropic API key (if using Claude models) |
 | `PORT` | No | Server port (default: 3001) |
+| `PI_MULTI_AGENT_DATA_DIR` | No | Session persistence directory |
+| `PI_MULTI_AGENT_RUNNING_SESSION_TIMEOUT_MS` | No | Running session timeout (default: 10 min) |
+
+---
 
 ## Development
 
@@ -364,43 +638,28 @@ npm run typecheck
 # Run tests
 npm run test
 
-# Start development watch mode
-npm run dev
+# Start backend server (port 3001)
+npm run server
+
+# Start web dashboard (port 3000)
+npm run dev:web
+
+# Start both simultaneously
+npm run dev:full
 ```
+
+---
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
-- Development setup
-- Pull request process
-- Coding standards
-- Testing guidelines
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on development setup, pull request process, coding standards, and testing guidelines.
 
 ## Community
-
-Join our community and stay connected:
 
 - **B 站 (Bilibili)** — AI 技术深度解析与实战教程
 - **视频号 (WeChat Video)** — AI 前沿动态与产品评测
 - **公众号 (WeChat Official Account)** — AI 技术文章与行业洞察
 - **YouTube** — AI tutorials and open-source project walkthroughs
-
-## Code of Conduct
-
-This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
-
-## Acknowledgments
-
-- Built with [TypeScript](https://www.typescriptlang.org/)
-- Powered by [DeepSeek](https://www.deepseek.com/) and OpenAI-compatible LLMs
-- Dashboard built with [Next.js](https://nextjs.org/)
-- Community support from 鲲鹏 Talk
-
----
-
-**π Multi-Agent** is an open-source project by **鲲鹏 Talk**.
-
-鲲鹏 Talk is a tech community focused on AI, sharing cutting-edge insights, tutorials, and open-source projects across multiple platforms.
 
 ## License
 

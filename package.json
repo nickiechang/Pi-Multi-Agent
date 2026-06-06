@@ -1,7 +1,7 @@
 {
   "name": "pi-multi-agent",
   "version": "1.0.0",
-  "description": "Production-grade Multi-Agent Framework — 6 collaboration patterns, 6 communication structures, LLM-powered deep planning, agent cluster execution, and real-time tool calling",
+  "description": "Production-grade multi-agent orchestration framework with 6 collaboration patterns, multi-model adaptive routing, deep planning, agent cluster execution, dynamic workflow engine, and real-time dashboard",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
