@@ -45,3 +45,14 @@ coverage/
 # Cache
 .cache/
 .eslintcache
+
+# Local tooling / agent notes
+.qwen/
+src/harness/
+AGENTS.md
+CONFIG.md
+multi-model-handoff.md
+
+# Publish artifacts
+pi-multi-agent-*.tgz
+publish.js
