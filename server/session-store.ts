@@ -187,7 +187,8 @@ export class FileSessionStore {
   private async writeSnapshot(snapshot: PersistedSessionSnapshot): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
     const filePath = this.getFilePath(snapshot.id);
-    const tmpPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    const unique = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const tmpPath = `${filePath}.${unique}.tmp`;
     await writeFile(tmpPath, `${JSON.stringify(snapshot, null, 2)}\n`, 'utf-8');
     await rename(tmpPath, filePath);
   }

@@ -43,6 +43,11 @@
       "import": "./dist/communication.mjs",
       "require": "./dist/communication.js"
     },
+    "./models": {
+      "types": "./dist/models.d.ts",
+      "import": "./dist/models.mjs",
+      "require": "./dist/models.js"
+    },
     "./workflow": {
       "types": "./dist/workflow.d.ts",
       "import": "./dist/workflow.mjs",
@@ -59,6 +64,8 @@
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "server": "npx tsx server/index.ts",
+    "dev:web": "cd web && npm run dev",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev:web\"",
     "start": "node bin/cli.js server",
     "example:research": "npx tsx examples/deep-research.ts",
     "example:collaboration": "npx tsx examples/collaboration-modes.ts",
@@ -105,6 +112,7 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^10.0.3",
     "eslint": "^8.56.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
@@ -115,6 +123,7 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "openai": "^6.39.1",
     "uuid": "^14.0.0",

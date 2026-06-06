@@ -1,4 +1,15 @@
 import OpenAI from 'openai';
+import { DeepSeekCompatibleClient } from '../models/deepseek-compatible-client.js';
+import type { ModelRegistry } from '../models/registry.js';
+import { ModelRouter } from '../models/router.js';
+import { ComplexityEstimator } from '../models/complexity-estimator.js';
+
+export interface DeepPlannerOptions {
+  apiKey?: string;
+  baseURL?: string;
+  registry?: ModelRegistry;
+  strategy?: string;
+}
 
 export interface SubTask {
   id: string;
@@ -35,9 +46,59 @@ let planIdCounter = 0;
 
 export class DeepPlanner {
   private llmClient: OpenAI;
+  private modelAware: { registry: ModelRegistry } | null = null;
+  private planModel: string | undefined;
 
-  constructor(apiKey: string, baseURL: string = 'https://api.deepseek.com') {
-    this.llmClient = new OpenAI({ apiKey, baseURL });
+  private buildClient(options?: DeepPlannerOptions): OpenAI {
+    const registry = options?.registry;
+    if (registry) {
+      this.modelAware = { registry };
+      const client = new DeepSeekCompatibleClient({ registry }) as unknown as OpenAI;
+      // Select a heavy/reasoning model for planning
+      try {
+        const router = (client as unknown as { getRouter: () => import('../models/router.js').ModelRouter }).getRouter();
+        const result = router.select('complexity', {
+          complexityHint: { complexity: 'heavy', requiredSpecialties: ['reasoning', 'planning'], requiresStreaming: false },
+        });
+        this.planModel = result.model.id;
+      } catch {
+        this.planModel = undefined;
+      }
+      return client;
+    }
+
+    const apiKey = options?.apiKey ?? '';
+    const baseURL = options?.baseURL ?? 'https://api.deepseek.com';
+    return new OpenAI({ apiKey, baseURL });
+  }
+
+  constructor(options?: DeepPlannerOptions) {
+    this.llmClient = this.buildClient(options);
+  }
+
+  /**
+   * Returns the model that will be used for planning, if registry-aware.
+   */
+  getPlanModel(): string | undefined {
+    return this.planModel;
+  }
+
+  /**
+   * Select a model for a given subTask based on its characteristics.
+   * Only meaningful when constructed with a registry.
+   */
+  selectModelForSubTask(subTask: SubTask): { modelId: string; providerId: string } | null {
+    if (!this.modelAware) return null;
+
+    const registry = this.modelAware.registry;
+    const estimator = new ComplexityEstimator();
+    const router = registry as unknown as ModelRouter;
+    const result = estimator.selectModelForSubTask(registry, router, {
+      priority: subTask.priority,
+      tools: subTask.tools,
+      assignedAgentType: subTask.assignedAgentType,
+    });
+    return { modelId: result.modelId, providerId: result.providerId };
   }
 
   async createDeepPlan(goal: string, options?: {
@@ -52,7 +113,7 @@ export class DeepPlanner {
     const planningPrompt = this.buildPlanningPrompt(goal, targetWordCount, maxAgents, depth);
 
     const response = await this.llmClient.chat.completions.create({
-      model: 'deepseek-chat',
+      model: this.planModel ?? 'deepseek-chat',
       messages: [
         {
           role: 'system',
@@ -198,7 +259,7 @@ ${failedTasks.map((t) => `- ${t.title}: ${t.description}`).join('\n')}
 请重新规划这些任务，提高输出质量。返回与之前相同格式的JSON。`;
 
     const response = await this.llmClient.chat.completions.create({
-      model: 'deepseek-chat',
+      model: this.planModel ?? 'deepseek-chat',
       messages: [
         {
           role: 'system',

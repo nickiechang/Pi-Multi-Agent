@@ -1,34 +1,96 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+const { DEEPSEEK_API_KEY } = process.env;
+
+import OpenAI from 'openai';
 import { readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const envPaths = [
-  path.resolve(process.cwd(), '.env'),
-  path.resolve(__dirname, '..', '.env'),
-];
-for (const envPath of envPaths) {
+
+// ---------- 多模型 provider 与模型配置 ----------
+import {
+  ModelRegistry,
+  MultiModelClient,
+  createDefaultModelProvidersConfig,
+  loadModelProvidersConfig,
+} from '../src/models/index.js';
+
+function buildModelRegistry(): ModelRegistry {
+  const registry = new ModelRegistry();
+
+  // 优先尝试加载外部配置文件；失败则回退到内置默认配置
+  let config:
+    | { providers: Array<{ id: string; displayName: string; baseURL: string; apiKey: string; isDefault?: boolean }>;
+        models: Array<{ id: string; provider: string }>; }
+    | undefined;
   try {
-    const envContent = readFileSync(envPath, 'utf-8');
-    for (const line of envContent.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIndex = trimmed.indexOf('=');
-      if (eqIndex === -1) continue;
-      const key = trimmed.slice(0, eqIndex).trim();
-      const value = trimmed.slice(eqIndex + 1).trim();
-      process.env[key] = value;
-    }
-    break;
-  } catch {}
+    config = loadModelProvidersConfig({
+      defaultPaths: [
+        path.resolve(process.cwd(), 'models.config.ts'),
+        path.resolve(process.cwd(), 'models.config.json'),
+        path.resolve(__dirname, 'models.config.ts'),
+      ],
+    });
+  } catch {
+    // ignore and use default config
+  }
+
+  const fallback = createDefaultModelProvidersConfig();
+  const providers = config?.providers ?? fallback.providers;
+  const models = config?.models ?? fallback.models;
+
+  for (const provider of providers) {
+    if (!provider.apiKey) continue;
+    registry.registerProvider({
+      id: provider.id,
+      displayName: provider.displayName,
+      baseURL: provider.baseURL,
+      apiKey: provider.apiKey,
+      isDefault: provider.isDefault,
+    });
+  }
+
+  for (const model of models) {
+    registry.registerModel({
+      id: model.id,
+      provider: model.provider,
+      displayName: model.displayName ?? model.id,
+      complexity: model.complexity,
+      specialties: model.specialties,
+      contextWindow: model.contextWindow,
+      maxOutputTokens: model.maxOutputTokens,
+      pricingPer1kInput: model.pricingPer1kInput,
+      pricingPer1kOutput: model.pricingPer1kOutput,
+      tags: model.tags,
+    });
+  }
+
+  return registry;
 }
+
+const modelRegistry = buildModelRegistry();
+const multiModelClient = new MultiModelClient({
+  registry: modelRegistry,
+  defaultStrategy: 'complexity',
+});
 
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createServer } from 'http';
 import { v4 as uuidv4 } from 'uuid';
-import OpenAI from 'openai';
+
+const app = express();
+app.use(cors());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public')));
+
+const server = createServer(app);
+const wss = new WebSocketServer({ server, path: '/ws' });
+
 import {
   Agent,
   AgentConfig,
@@ -55,21 +117,6 @@ import {
   type PersistedSessionResult,
   type PersistedWorkflowResult,
 } from './session-store.js';
-
-const app = express();
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.static(path.join(path.dirname(fileURLToPath(import.meta.url)), 'public')));
-
-const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
-
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
-
-const deepseekClient = new OpenAI({
-  apiKey: DEEPSEEK_API_KEY,
-  baseURL: 'https://api.deepseek.com',
-});
 
 interface ActiveSession {
   id: string;
@@ -167,12 +214,12 @@ function isExecutionActive(sessionId: string): boolean {
 }
 
 function createDeepSeekExecutor(sessionId: string): AgentExecutor {
+  const client = multiModelClient;
   return {
     async execute(prompt: string, context: AgentContext): Promise<{ text: string }> {
       const agentName = (context.metadata?.['agentName'] as string) || 'Agent';
-      const session = sessions.get(sessionId);
 
-      if (session?.ws && session.ws.readyState === WebSocket.OPEN) {
+      if (session.ws?.readyState === WebSocket.OPEN) {
         session.ws.send(
           JSON.stringify({
             type: 'agent_thinking',
@@ -184,8 +231,7 @@ function createDeepSeekExecutor(sessionId: string): AgentExecutor {
       }
 
       try {
-        const response = await deepseekClient.chat.completions.create({
-          model: 'deepseek-chat',
+        const response = await client.simple({
           messages: [
             {
               role: 'system',
@@ -194,12 +240,12 @@ function createDeepSeekExecutor(sessionId: string): AgentExecutor {
             { role: 'user', content: prompt },
           ],
           temperature: 0.7,
-          max_tokens: 4096,
+          maxTokens: 4096,
         });
 
-        const text = response.choices[0]?.message?.content || '无响应';
+        const text = response.text;
 
-        if (session?.ws && session.ws.readyState === WebSocket.OPEN) {
+        if (session.ws?.readyState === WebSocket.OPEN) {
           session.ws.send(
             JSON.stringify({
               type: 'agent_response',
@@ -208,11 +254,7 @@ function createDeepSeekExecutor(sessionId: string): AgentExecutor {
               taskId: context.taskId,
               text,
               tokenUsage: response.usage
-                ? {
-                    prompt: response.usage.prompt_tokens,
-                    completion: response.usage.completion_tokens,
-                    total: response.usage.total_tokens,
-                  }
+                ? { prompt: response.usage.promptTokens, completion: response.usage.completionTokens, total: response.usage.totalTokens }
                 : undefined,
             })
           );
@@ -220,7 +262,7 @@ function createDeepSeekExecutor(sessionId: string): AgentExecutor {
 
         return { text };
       } catch (error: any) {
-        if (session?.ws && session.ws.readyState === WebSocket.OPEN) {
+        if (session.ws?.readyState === WebSocket.OPEN) {
           session.ws.send(
             JSON.stringify({
               type: 'agent_error',
@@ -338,8 +380,7 @@ app.post('/api/analyze-complexity', async (req, res) => {
   }
 
   try {
-    const response = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+    const response = await multiModelClient.simple({
       messages: [
         {
           role: 'system',
@@ -360,10 +401,10 @@ Return ONLY the JSON object, no other text.`,
         { role: 'user', content: task },
       ],
       temperature: 0.3,
-      max_tokens: 500,
+      maxTokens: 500,
     });
 
-    const content = response.choices[0]?.message?.content || '';
+    const content = response.text;
     let analysis;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -394,18 +435,17 @@ app.post('/api/chat', async (req, res) => {
   }
 
   try {
-    const response = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+    const response = await multiModelClient.simple({
       messages: [
         { role: 'system', content: 'You are a helpful AI assistant. Respond concisely and accurately.' },
         { role: 'user', content: message },
       ],
       temperature: 0.7,
-      max_tokens: 2048,
+      maxTokens: 2048,
     });
 
-    const output = response.choices[0]?.message?.content || '';
-    const tokens = response.usage?.total_tokens || 0;
+    const output = response.text;
+    const tokens = response.usage?.totalTokens ?? 0;
 
     res.json({ output, tokens, success: true });
   } catch (error: any) {
@@ -422,8 +462,7 @@ app.post('/api/clarify', async (req, res) => {
   }
 
   try {
-    const response = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+    const response = await multiModelClient.simple({
       messages: [
         {
           role: 'system',
@@ -482,10 +521,10 @@ Return ONLY valid JSON, no other text.`,
         { role: 'user', content: task },
       ],
       temperature: 0.3,
-      max_tokens: 1500,
+      maxTokens: 1500,
     });
 
-    const content = response.choices[0]?.message?.content || '';
+    const content = response.text;
     let result;
     try {
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -566,8 +605,7 @@ app.post('/api/sessions/:sessionId/agents/auto-generate', async (req, res) => {
   }
 
   try {
-    const planningResponse = await deepseekClient.chat.completions.create({
-      model: 'deepseek-chat',
+    const planningResponse = await multiModelClient.simple({
       messages: [
         {
           role: 'system',
@@ -596,10 +634,10 @@ app.post('/api/sessions/:sessionId/agents/auto-generate', async (req, res) => {
         { role: 'user', content: `任务：${task}` },
       ],
       temperature: 0.5,
-      max_tokens: 2048,
+      maxTokens: 2048,
     });
 
-    const planText = planningResponse.choices[0]?.message?.content || '';
+    const planText = planningResponse.text;
     const jsonMatch = planText.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       res.status(500).json({ error: 'Failed to parse agent plan' });
@@ -679,7 +717,7 @@ app.post('/api/sessions/:sessionId/deep-plan', async (req, res) => {
       }));
     }
 
-    const planner = new DeepPlanner(DEEPSEEK_API_KEY);
+    const planner = new DeepPlanner({ registry: modelRegistry });
     const plan = await planner.createDeepPlan(task, {
       targetWordCount: targetWordCount || 30000,
       maxAgents: maxAgents || 10,
@@ -687,6 +725,12 @@ app.post('/api/sessions/:sessionId/deep-plan', async (req, res) => {
     });
 
     session.currentPlan = plan;
+    await sessionStore.patchSession(sessionId, {
+      status: 'running',
+      mode: 'deep',
+      task,
+      plan: toPersistedPlan(plan),
+    });
     await sessionStore.patchSession(sessionId, {
       status: 'running',
       mode: 'deep',
@@ -785,7 +829,7 @@ app.post('/api/sessions/:sessionId/cluster-execute', async (req, res) => {
       }));
     }
 
-    const planner = new DeepPlanner(DEEPSEEK_API_KEY);
+    const planner = new DeepPlanner({ registry: modelRegistry });
     const plan = await planner.createDeepPlan(task, {
       targetWordCount: targetWordCount || 30000,
       maxAgents: maxAgents || 10,
@@ -793,6 +837,12 @@ app.post('/api/sessions/:sessionId/cluster-execute', async (req, res) => {
     });
 
     session.currentPlan = plan;
+    await sessionStore.patchSession(sessionId, {
+      status: 'running',
+      mode: 'deep',
+      task,
+      plan: toPersistedPlan(plan),
+    });
     await sessionStore.patchSession(sessionId, {
       status: 'running',
       mode: 'deep',
@@ -821,7 +871,10 @@ app.post('/api/sessions/:sessionId/cluster-execute', async (req, res) => {
       }));
     }
 
-    const cluster = new AgentCluster(DEEPSEEK_API_KEY, sessionId);
+    const defaultProvider = modelRegistry.getDefaultProvider();
+    const apiKey = defaultProvider?.apiKey ?? '';
+    const baseURL = defaultProvider?.baseURL ?? 'https://api.deepseek.com';
+    const cluster = new AgentCluster({ registry: modelRegistry, apiKey, baseURL }, sessionId);
     session.cluster = cluster;
 
     cluster.onEvent((event: ClusterEvent) => {

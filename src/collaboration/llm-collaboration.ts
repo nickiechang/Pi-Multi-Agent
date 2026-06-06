@@ -1,4 +1,12 @@
 import OpenAI from 'openai';
+import { DeepSeekCompatibleClient } from '../models/deepseek-compatible-client.js';
+import type { ModelRegistry } from '../models/registry.js';
+
+export interface LLMAgentCollaborationOptions {
+  apiKey?: string;
+  baseURL?: string;
+  registry?: ModelRegistry;
+}
 
 export interface LLMAgent {
   id: string;
@@ -32,8 +40,20 @@ export interface LLMAgentCollaborationResult {
 export class LLMAgentCollaboration {
   private llmClient: OpenAI;
 
-  constructor(apiKey: string, baseURL: string = 'https://api.deepseek.com') {
-    this.llmClient = new OpenAI({ apiKey, baseURL });
+  constructor(apiKeyOrOptions: string | LLMAgentCollaborationOptions = '', baseURL?: string) {
+    let options: LLMAgentCollaborationOptions;
+
+    if (typeof apiKeyOrOptions === 'string') {
+      options = { apiKey: apiKeyOrOptions, baseURL };
+    } else {
+      options = apiKeyOrOptions;
+    }
+
+    if (options.registry) {
+      this.llmClient = new DeepSeekCompatibleClient({ registry: options.registry }) as unknown as OpenAI;
+    } else {
+      this.llmClient = new OpenAI({ apiKey: options.apiKey ?? '', baseURL: options.baseURL ?? 'https://api.deepseek.com' });
+    }
   }
 
   private async callAgent(agent: LLMAgent, input: string, maxTokens: number = 4096): Promise<LLMAgentResult> {

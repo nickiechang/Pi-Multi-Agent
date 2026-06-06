@@ -1,4 +1,12 @@
 import OpenAI from 'openai';
+import { DeepSeekCompatibleClient } from '../models/deepseek-compatible-client.js';
+import type { ModelRegistry } from '../models/registry.js';
+
+export interface DeepEvaluatorOptions {
+  apiKey?: string;
+  baseURL?: string;
+  registry?: ModelRegistry;
+}
 
 export interface DeepEvaluationDimension {
   name: string;
@@ -25,8 +33,26 @@ export interface DeepEvaluationResult {
 export class DeepEvaluator {
   private llmClient: OpenAI;
 
-  constructor(apiKey: string, baseURL: string = 'https://api.deepseek.com') {
-    this.llmClient = new OpenAI({ apiKey, baseURL });
+  private buildClient(options: DeepEvaluatorOptions): OpenAI {
+    if (options.registry) {
+      return new DeepSeekCompatibleClient({ registry: options.registry }) as unknown as OpenAI;
+    }
+
+    const apiKey = options.apiKey ?? '';
+    const baseURL = options.baseURL ?? 'https://api.deepseek.com';
+    return new OpenAI({ apiKey, baseURL });
+  }
+
+  constructor(options?: string | DeepEvaluatorOptions, baseURL?: string) {
+    let resolved: DeepEvaluatorOptions;
+
+    if (typeof options === 'string') {
+      resolved = { apiKey: options, baseURL };
+    } else {
+      resolved = options ?? {};
+    }
+
+    this.llmClient = this.buildClient(resolved);
   }
 
   async evaluate(

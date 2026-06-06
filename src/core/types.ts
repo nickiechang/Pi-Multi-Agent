@@ -10,6 +10,10 @@ export interface ModelConfig {
   maxTokens?: number;
   topP?: number;
   timeout?: number;
+  /** 直接使用已注册的模型 ID */
+  modelId?: string;
+  /** 当未提供 modelId 时的 fallback */
+  fallbackModelId?: string;
 }
 
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {

@@ -1,7 +1,57 @@
-export * from './core/types.js';
 export * from './core/errors.js';
 export * from './core/message.js';
 export * from './core/agent.js';
+
+export type {
+  AgentId,
+  TaskId,
+  SessionId,
+  MessageId,
+  ModelConfig,
+  ToolDefinition,
+  ToolExecutionContext,
+  ToolResult,
+  TokenUsage,
+  AgentContext,
+  AgentMetrics,
+  AgentStats,
+  AgentCapability,
+  AgentProfile,
+  CollaborationPattern,
+  CommunicationStructure,
+  Message,
+  MessageType,
+  MessageMetadata,
+  HandoffMessage,
+  BroadcastMessage,
+  Task,
+  TaskStatus,
+  TaskPriority,
+  TaskResult,
+  ExecutionPlan,
+  ExecutionStep,
+  PlanConstraints,
+  EvaluationResult,
+  EvaluationDimension,
+  ReflectionResult,
+  Issue,
+  Recommendation,
+  RetryPolicy,
+  CircuitBreakerConfig,
+  RateLimitConfig,
+  AgentError,
+  SystemConfig,
+  LogLevel,
+  LogEntry,
+  Trace,
+  HealthCheck,
+  ComponentHealth,
+  MemoryEntry,
+  SessionContext,
+  SharedState,
+  Event,
+  EventType,
+} from './core/types.js';
 
 export * from './orchestration/planner.js';
 export * from './orchestration/orchestrator.js';
@@ -56,8 +106,6 @@ export {
   createCommunicationStructure,
 } from './communication/structures.js';
 
-export { CollaborationPattern, CommunicationStructure } from './core/types.js';
-
 export { DynamicWorkflow } from './workflow/workflow.js';
 export type { WorkflowConfig, WorkflowResult, WorkflowEvent, WorkflowEventCallback, WorkflowMeta, WorkflowPhase, WorkflowSnapshot, WorkflowStatus, AgentSnapshot, AgentStatus, AgentOpts } from './workflow/types.js';
 export { TokenBudget } from './workflow/budget.js';
@@ -65,3 +113,5 @@ export { validateAgainstSchema, parseStructuredOutput } from './workflow/structu
 export type { JSONSchema, ValidationResult, ValidationError } from './workflow/structured-output.js';
 export { extractMeta, runWorkflowScript, renderSnapshot } from './workflow/runtime.js';
 export { parallel, pipeline } from './workflow/pipeline.js';
+
+export * from './models/index.js';
